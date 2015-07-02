@@ -13,7 +13,7 @@ Differentiation Matrix Constructors:
         D = diff2lag(x)     ** Second-order differentiation matrix
         diffmat.diff2lag?? for help
 """
-from pylab import *
+from numpy import *
 import tools
 
 def diff1lag(x):
@@ -92,6 +92,108 @@ def diff2lag(x):
         D[i,i] = -sum(D[i,jindx])          # row sum of off-diagonal entries
     return D
 
+def diff1fd24(n,order=2,h=1):
+    """
+    D = diff1fd24(n,order,grid-spacing)
+    
+    Notes:
+        * Local (i.e. uses neighboring grid points) differentiation matrix
+        * Select either 2nd or 4th order accuracy
+        * Uses centered-differences for the interior
+        * Uses one-sided differencing for the boundaries
+
+    Input:
+        n -- number of grid points
+        order -- 2nd or 4th order
+        h -- grid spacing
+        
+    Output:
+        D -- global differentiation matrix
+        
+    Edits:
+        02 JUL 2015:
+        First working version diff1fd24 (KJW)
+        Unit test added, f(x) = exp(sin(pi*x)) (KJW)
+    """ 
+    from scipy.sparse import spdiags, lil_matrix
+    e = ones(n)
+    if order == 2:
+        #Construct stencil weights
+        stencil = array([-e/2.,e/2.])
+        #Centered difference stencils are located on the off-diagonals
+        diag_array = array([-1,1])
+        D = spdiags(stencil,diag_array,n,n)
+        D = lil_matrix(D)
+        #Differentiaion at the boundary is approximated using one-sided stencil
+        D[0,0:3] = array([-3./2,2.,-1./2])
+        D[-1,-3:] = array([1/2.,-2.,3./2])
+    elif order == 4:
+        #Construct stencil weights        
+        stencil = array([e/12., -2*e/3.,2*e/3.,-e/12.])
+        #Centered difference stencils are located on the off-diagonals
+        diag_array = array([-2,-1,1,2])
+        D = spdiags(stencil,diag_array,n,n)
+        D = lil_matrix(D)
+        #Differentiaion at the boundary is approximated using one-sided stencil
+        D[1,0:6] = array([0.,-25./12,4.,-3.,4./3,-1./4])
+        D[-2,-6:] = array([1./4,-4./3,3.,-4.,25./12,0.])
+        D[0,0:5] = array([-25./12,4.,-3.,4./3,-1./4])
+        D[-1,-5:] = array([1./4,-4./3,3.,-4.,25./12])
+    else:
+        print("*** Only 2nd or 4th order approximaitons are considered.")
+    return D/h
+
+def diff2fd24(n,order=2,h=1):
+    """
+    D = diff2fd24(n,order,grid-spacing)
+    
+    Notes:
+        * Local (i.e. uses neighboring grid points) differentiation matrix
+        * Select either 2nd or 4th order accuracy
+        * Uses centered-differences for the interior
+        * Uses one-sided differencing for the boundaries
+
+    Input:
+        n -- number of grid points
+        order -- 2nd or 4th order
+        h -- grid spacing
+        
+    Output:
+        D -- global differentiation matrix
+        
+    Edits:
+        02 JUL 2015:
+        First working version diff2fd24 (KJW)
+        Unit test added, f(x) = exp(sin(pi*x)) (KJW)
+    """     
+    from scipy.sparse import spdiags, lil_matrix
+    e = ones(n)
+    if order == 2:
+        #Construct stencil weights
+        stencil = array([e,-2*e,e])
+        #Centered difference stencils are located on the off-diagonals
+        diag_array = array([-1,0,1])
+        D = spdiags(stencil,diag_array,n,n)
+        D = lil_matrix(D)
+        #Differentiaion at the boundary is approximated using one-sided stencil
+        D[0,0:4] = array([2.,-5.,4.,-1.])
+        D[-1,-4:] = array([-1.,4.,-5.,2.])
+    elif order == 4:
+        #Construct stencil weights
+        stencil = array([-e/12., 4*e/3.,-5*e/2.,4*e/3.,-e/12.])
+        #Centered difference stencils are located on the off-diagonals
+        diag_array = array([-2,-1,0,1,2])
+        D = spdiags(stencil,diag_array,n,n)
+        D = lil_matrix(D)
+        #Differentiaion at the boundary is approximated using one-sided stencil
+        D[1,0:7] = array([0.,15./4,-77./6,107./6,-13.,61./12,-5./6])
+        D[-2,-7:] = array([-5./6,61./12,-13.,107./6,-77./6,15./4,0.])
+        D[0,0:6] = array([15./4,-77./6,107./6,-13.,61./12,-5./6])
+        D[-1,-6:] = array([-5./6,61./12,-13.,107./6,-77./6,15./4])
+    else:
+        print("*** Only 2nd or 4th order approximaitons are considered.")
+    return D/h**2
+    
 '''
                     ***** Unit Tests *****
 '''
@@ -129,7 +231,41 @@ def test_diff2lag():
         err = tools.normd(du-du_true,x,'right')
         print("Discrete L2-error is %20.15e for n = %4d") % (err,n)
 
+def test_diff1fd24():
+    for n in 2**arange(4,11):
+        #Create an evenly-spaced grid of n points
+        x = linspace(-1,1,n)
+        # First-order differentiation matrix against first-order derivative        
+        D2 = diff1fd24(n,2,2./(n-1))
+        D4 = diff1fd24(n,4,2./(n-1))
+        du_true, u = testf(x)
+        du2 = D2.dot(u)
+        du4 = D4.dot(u)
+        # Discrete L2-norm -- right-hand rule
+        err2 = tools.normd(du2-du_true,x,'even')
+        print("Discrete L2-error (2nd order) is %20.15e for n = %4d") % (err2,n)
+        err4 = tools.normd(du4-du_true,x,'even')
+        print("Discrete L2-error (4th order) is %20.15e for n = %4d") % (err4,n)
+        
+def test_diff2fd24():
+    for n in 2**arange(4,11):
+        #Create an evenly-spaced grid of n points
+        x = linspace(-1,1,n)
+        # Second-order differentiation matrix against second-order derivative        
+        D2 = diff2fd24(n,2,2./(n-1))
+        D4 = diff2fd24(n,4,2./(n-1))
+        du_true, u = testf(x,2)
+        du2 = D2.dot(u)
+        du4 = D4.dot(u)
+        # Discrete L2-norm -- right-hand rule
+        err2 = tools.normd(du2-du_true,x,'even')
+        print("Discrete L2-error (2nd order) is %20.15e for n = %4d") % (err2,n)
+        err4 = tools.normd(du4-du_true,x,'even')
+        print("Discrete L2-error (4th order) is %20.15e for n = %4d") % (err4,n)
+        
 if __name__ == "__main__":
     print "Running Test"
     test_diff1lag()
     test_diff2lag()
+    test_diff1fd24()
+    test_diff2fd24()
