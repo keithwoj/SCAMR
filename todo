@@ -1,0 +1,11 @@
+Create an imodeint for implicit time-steppers. Add the following algorithms to those modules:
+
+(1) Euler's Method -> exodeint
+(2) Predictor-corrector Method -> exodeint
+(3) Backwards Euler's Method -> imodeint
+(4) Crank-Nicolson Method -> imodeint
+(5) Douglas-Rachford ADI -> imodeint
+(6) Peaceman-Rachford ADI -> imodeint
+(7) Exponential Time-Differencing (ETD) -> exodeint
+(8) Beylkin-Volsovo's ETD with non-linear part explict & implicit methods -> ?
+(9) Trefethen's ETD-RK4 -> exodeint

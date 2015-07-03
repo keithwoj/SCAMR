@@ -170,7 +170,7 @@ def diff2fd24(n,order=2,h=1):
     e = ones(n)
     if order == 2:
         #Construct stencil weights
-        stencil = array([e,-2*e,e])
+        stencil = array([e,-2.*e,e])
         #Centered difference stencils are located on the off-diagonals
         diag_array = array([-1,0,1])
         D = spdiags(stencil,diag_array,n,n)
