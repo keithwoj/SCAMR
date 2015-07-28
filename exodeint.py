@@ -8,7 +8,7 @@ Created on Thu Jun 18 15:56:18 2015
 The functions for this module adopt the following convention
 
 y, t = SOLVER(F,y0,t0,tf,h)
-y, t = SOLVER(F,y0,t0,tf,h,history = False)
+y, t = SOLVER(F,y0,t0,tf,h,history)
 
 Input:
         F -- Function to be integrated dy/dt = F(y,t)
@@ -35,12 +35,13 @@ Edits:
         19 JUN 2015:
         First working version RK4 (KJW)
         Unit test added, dy/dt = -2*t*y, h = 0.1, 0.01, 0.001 (KJW)
-        Vectorized, i.e. y can be a vector so RK4e can be used to solve
+        Vectorized, i.e. y can be a vector so solvers can be used to solve
         time evolution PDEs (KJW)
         
 Solvers:
         y, t = RK4(F,y0,t0,tf,h,history)
         y, t = euler(F,y0,t0,tf,h,history)
+        y, t = eulerpc(F,y0,t0,tf,h,history)
         exodeint.test?? to see the unit test and an example
 """
 
