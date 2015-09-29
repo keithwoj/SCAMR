@@ -9,3 +9,12 @@ Create an imodeint for implicit time-steppers. Add the following algorithms to t
 (7) Exponential Time-Differencing (ETD) -> exodeint
 (8) Beylkin-Volsovo's ETD with non-linear part explict & implicit methods -> ?
 (9) Trefethen's ETD-RK4 -> exodeint
+
+Convert RBF library from MATLAB to Python:
+
+(1) Distance Matrix
+(2) Difference Matrix
+(3) Dense Differentiation Matrices
+(4) RBF-FD Differentiation Matrices
+(5) RBF-LA Differentiation Matrices
+(6) Unit tests
