@@ -84,10 +84,12 @@ def testfunction(data):
 def test_dmatrix():
     x = linspace(0,1,19)
     xp = linspace(0.01,0.99,33)    
-    data = array([x]).T
-    ep = array([xp]).T
+    #data = array([x]).T
+    #ep = array([xp]).T
     #data = array([x,x]).T
-    #data = array([x,x,x]).T
+    #ep = array([xp,xp]).T
+    data = array([x,x,x]).T
+    ep = array([xp,xp,xp]).T
     ctrs = data
     IM = dmatrix(data,ctrs)
     EM = dmatrix(ep,ctrs)
