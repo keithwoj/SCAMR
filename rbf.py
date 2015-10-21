@@ -7,32 +7,41 @@ Created on Fri Oct 09 12:58:24 2015
 Module containing functions for constructing tools to perform 
 radial basis function (RBF) interpolation and differentiation.
 
-dmatrix constructs the distance matrix between points and centers
+Some References:
+(1) Fasshauer G.E., Meshfree Approximation Methods with MATLAB, World Scientific
+(2) Fornberg B., Flyer N., A Primer on Radial Basis Functions with Applications
+    to the Geosciences, SIAM
+--------------------------------------------------------------------------------
+                                FUNCTION LIST
+--------------------------------------------------------------------------------
+dmatrix(d,**kwargs) builds Euclidian distance matrix between data and centers
 
-rbfinterp solves the collocation problem (interpolate) data to a surface (curve)
+rbfinterp(d,s,p,rbfparms) solves a collocation problem, fits surface to data
 
-RBFs:
-dmatrix is the linear RBF, f(r) = r
-dmatrix(d,c)
+*** RBFs Included:
+
+linear, f(r) = r
+linear(d,**parms)
 
 cubic, f(r) = r^3
-cubic(d,c,order=0,ep=0)
+cubic(d,**parms)
 
 multiquadric, f(r) = sqrt(1 + (ep r)^2)
-mq(d,c,order=0,ep=1)
+mq(d,**parms)
 
 gauss, f(r) = exp(-(ep r)^2)
-gauss(d,c,order=0,ep=1)
+gauss(d,**parms)
 
 RBF Remarks:
 (1) r is the distance matrix, dmatrix(d,c) where d = data, c = centers
-(2) ep is the shape parameter epsilon
+(2) ep is the shape parameter epsilon, may be a vector of varying parameters
 (3) the interface for each RBF function is (d,c,order,ep)
     d = data, c = centers, order = derivative order, ep = shape parameter
 (4) Even though an RBF does not require a shape parameter, send one anyway, this
     convention permits a general differentiation matrix interface for RBF-FD
 (5) RBFs are globally supported but not all are strictly positive definite
 
+*** TO DO: ALLOW ep TO BE A VECTOR, CONVERT ep*ones --> DM*diag(ep)
 *** TO DO: CONSTRUCT RBF-GLOBAL DIFFERENTIATION MATRICES
 *** TO DO: CONSTRUCT RBF-FD DIFFERENTIATION MATRICES
 *** TO DO: CONSTRUCT RBF-LA DIFFERENTIATION MATRICES
@@ -42,14 +51,17 @@ RBF Remarks:
 
 from pylab import array, dot, exp, linalg, linspace, norm, ones, sqrt, zeros
 
-def dmatrix(d,c):
-    # DM = dmatrix(d,c)
+def dmatrix(d,**kwargs):
+    # DM = dmatrix(d,**kwargs)
     #    
     # Arguments:
-    # d = data, c = centers
-    #
+    # d = data
+    # kwargs may contain centers, c
+    #     
     # Typically d = c but, in general, data does not have to equal its centers
-    #
+    # as in the case of the evaluation matrix, where the d becomes the
+    # evaluation points and the centers are the collocation data.
+    # 
     # Output DM:
     # Compute the distance matrix with entries being the distances between the
     # data and the centers.
@@ -74,7 +86,7 @@ def dmatrix(d,c):
     # Test Input:
     # Are d and c arrays of row vectors?
     # If d and c are column vectors, convert them to row vectors.
-    # If d and c are square, i.e. # pts = dimension of space, notify user  
+    # If d and c are square, i.e. # pts = dimension of space, notify user 
     if d.ndim > 1:    
         if d.shape[1] > d.shape[0]:
             d = d.T
@@ -82,6 +94,13 @@ def dmatrix(d,c):
             print("Assuming data is in row-vector form.")
     else:   # 1-D data, convert to 2-D data with shape (M,1)
         d = array([d]).T
+    
+    ## **************** WHY DOES c = kwargs.get('centers',d) RETURN NONE????
+    if kwargs.get('centers') is None:
+        c = d
+    else:
+        c = kwargs.get('centers')
+
     if c.ndim > 1:
         if c.shape[1] > c.shape[0]:
             c = c.T
@@ -118,82 +137,89 @@ def dmatrix(d,c):
     # Finish distance formula by taking square root of each entry
     return sqrt(DM)
 
-def rbfinterp(d,c,s,p,func = 'dist',ep=1):
+def rbfinterp(d,s,p,**rbfparms):
     #
-    # *** TO DO: create an rbf function, allow user input for rbf type
-    #
-    # yp = rbfinterp(d,c,s,p)
+    # yp = rbfinterp(d,s,p,**rbfparms)
     #
     # Use Radial Basis Functions (rbf) to interpolate
     #
     # Arguments:
-    # d = data, c = centers
+    # d = data
     # s = surface (curve) to be interpolated
     # p = evaluation points (points at which s is to be interpolated)
-    # rbf = Radial Basis Function (RBF) to be used for interpolation
-    #       default = Euclidian distance matrix
+    # rbfparms = 'rbf','ep', 'op'
+    #       rbf = Radial Basis Function (RBF) to be used for interpolation
+    #       ep = shape parameter for RBF
+    #       op = which operators are needed (*** items may be a list ***)
+    #          {'interp', 'first', 'second', 'div', 'grad', 'curl', 'laplacian'}
     #
-    # Construct the rbf
-    # *** TO DO: convert to a dictionary or hashmap (with derivatives, etc.)
-    if func == 'dist':
-        IM = dmatrix(d,c)
-        EM = dmatrix(p,c)
-    elif func == 'mq':
-        IM = mq(d,c,0,ep)
-        EM = mq(p,c,0,ep)
-    elif func == 'cubic':
-        IM = cubic(d,c,0,ep)
-        EM = cubic(p,c,0,ep)
-    elif func == 'gauss':
-        IM = gauss(d,c,0,ep)
-        EM = gauss(p,c,0,ep)
-    else:
-        raise NameError("Enter a valid RBF.")    
+    # Construct the collocation matrices:
+    # bfunc = rbf
+    bfunc = rbfparms.get('rbf',dmatrix)
+    # op = operator
+    op = rbfparms.get('op','interp')
+    # ep = shape parameter
+    ep = rbfparms.get('ep')
+    # IM = interpolation matrix
+    IM = bfunc(d, operator = op, shapeparm = ep)
+    # EM = evaluation matrix
+    EM = bfunc(p, centers = d, operator = op, shapeparm = ep)
     #***************************************************************************
     # Linear Algebra Remarks:
     # 
-    # P*a = s is a system of equations where the coefficients, a, are unknown
+    # P*w = s is a system of equations where the coefficients, w, are unknown
     # This matrix system is called the "collocation problem," i.e. What weights
     # are needed so that a linear combination of basis functions and weights
     # yeilds a point on the surface?
-    # Once the weights, a, are determined, they can be used to construct the
+    # Once the weights, w, are determined, they can be used to construct the
     # interpolant.
     #
     # Summary:
-    # P*a = s => a = inv(P)*s
-    # EM*a = yp where yp is the interpolant and EM is the matrix with entries
+    # P*w = s => w = inv(P)*s
+    # EM*w = yp where yp is the interpolant and EM is the matrix with entries
     # that are known basis functions at the evaluation points.
     #
-    # Since a = inv(P)*s, EM*a = yp => EM*inv(P)*s
+    # Since w = inv(P)*s, EM*w = yp => EM*inv(P)*s
     #
     return dot(EM,linalg.solve(IM,s))
-
 '''
-********************************************************************************
+--------------------------------------------------------------------------------
                                     RBF ZOO
-********************************************************************************
+--------------------------------------------------------------------------------
 '''
-def cubic(d,c,order=0,ep=0):
+def linear(d,**parms):
+    # linear, f(r) = r
+    c = parms.get('centers')
+    return dmatrix(d, centers = c)
+    
+def cubic(d,**parms):
     # cubic, f(r) = r^3
-    DM = dmatrix(d,c)
+    c = parms.get('centers')    
+    #op = parms.get('operator','interp')
+    DM = dmatrix(d, centers = c)
     return DM**3
     
-def mq(d,c,order=0,ep=1):
+def mq(d,**parms):
     # multiquadric, f(r) = sqrt(1 + (ep r)^2)
-    DM = dmatrix(d,c)
+    c = parms.get('centers')
+    #op = parms.get('operator','interp')
+    ep = parms.get('shapeparm',1)
+    DM = dmatrix(d, centers = c)
     e = ep*ones(DM.shape)
     return sqrt(1+(e*DM)**2)
 
-def gauss(d,c,order=0,ep=1):
+def gauss(d,**parms):
     # gaussian, f(r) = exp(-(ep r)^2)
-    DM = dmatrix(d,c)
+    c = parms.get('centers')
+    #op = parms.get('operator','interp')
+    ep = parms.get('shapeparm',1)
+    DM = dmatrix(d, centers = c)
     e = ep*ones(DM.shape)
     return exp(-(e*DM)**2)
-
 '''
-********************************************************************************
+--------------------------------------------------------------------------------
                                 UNIT TESTS
-********************************************************************************
+--------------------------------------------------------------------------------
 '''  
 def testfunction(data):
     # N-D Gaussian
@@ -208,88 +234,78 @@ def test_interp():
     # Testing interpolation
     x = linspace(0,1,19)    
     xp = linspace(0.01,0.99,33)
-    rbf_list = ['dist','cubic','mq','gauss']
+    rbf_list = [linear,cubic,mq,gauss]
     ep_list = [0.01,0.5,1.0,1.5,2]
-    for ep in ep_list:
+    for ee in ep_list:
         for ff in rbf_list:
             # 1D
-            data = array([x]).T
-            ctrs = data
+            d = array([x]).T
             p = array([xp]).T
-            rhs = testfunction(data)
+            rhs = testfunction(d)
             exact = testfunction(p)
-            Pf = rbfinterp(data,ctrs,rhs,p,ff,ep)
+            Pf = rbfinterp(d,rhs,p,rbf = ff,ep = ee)
 
             err = norm(Pf-exact)
-        
-            print "1D interp, %s, shape = %f, L2 error = %e " % (ff,ep,err)
+            
+            print "1D interp, %s, shape = %f, L2 error = %e|" % (ff.func_name,ee,err)
     
             # 2D
-            data = array([x,x]).T
-            ctrs = data
+            d = array([x,x]).T
             p = array([xp,xp]).T
-            rhs = testfunction(data)
+            rhs = testfunction(d)
             exact = testfunction(p)
-            Pf = rbfinterp(data,ctrs,rhs,p,ff,ep)
+            Pf = rbfinterp(d,rhs,p,rbf = ff,ep = ee)
         
             err = norm(Pf-exact)
         
-            print "2D interp, %s, shape = %f, L2 error = %e " % (ff,ep,err)
+            print "2D interp, %s, shape = %f, L2 error = %e|" % (ff.func_name,ee,err)
         
             # 3D
-            data = array([x,x,x]).T
-            ctrs = data
+            d = array([x,x,x]).T
             p = array([xp,xp,xp]).T
-            rhs = testfunction(data)
+            rhs = testfunction(d)
             exact = testfunction(p)
-            Pf = rbfinterp(data,ctrs,rhs,p,ff,ep)
+            Pf = rbfinterp(d,rhs,p,rbf = ff,ep = ee)
         
             err = norm(Pf-exact)
         
-            print "3D interp, %s, shape = %f, L2 error = %e " % (ff,ep,err) 
-            print "----------------------------------------------------"
+            print "3D interp, %s, shape = %f, L2 error = %e|" % (ff.func_name,ee,err) 
+            print "------------------------------------------------------------"
             
 def test_dmatrix():
     # Unit tests for the dmatrix function
     x = linspace(0,1,5)
     # Test 1D without formatting input, data is 1D, shape is (N,)
     data = x
-    ctrs = data
-    DM = dmatrix(data,ctrs)
+    DM = dmatrix(data)
     print DM
     
     # Test 1D with x in wrong orientation (dim by N pts), data is 2D array
     data = array([x])
-    ctrs = data
-    DM = dmatrix(data,ctrs)
+    DM = dmatrix(data)
     print DM    
     
     # Test 1D with x in correct orientation (N by dim pts), data is 2D array
     data = array([x]).T
-    ctrs = data
-    DM = dmatrix(data,ctrs)
+    DM = dmatrix(data)
     print DM  
 
     # Test 2D with x in wrong orientation (dim by N pts), data is 2D array
     data = array([x,x])
-    ctrs = data
-    DM = dmatrix(data,ctrs)
+    DM = dmatrix(data)
     print DM    
 
     # Test 2D with x in correct orientation (N by dim pts), data is 2D array
     data = array([x,x]).T
-    ctrs = data
-    DM = dmatrix(data,ctrs)
+    DM = dmatrix(data)
     print DM   
 
     # Test 3D with x in wrong orientation (dim by N pts), data is 2D array
     data = array([x,x,x])
-    ctrs = data
-    DM = dmatrix(data,ctrs)
+    DM = dmatrix(data)
     print DM    
 
     # Test 3D with x in correct orientation (N by dim pts), data is 2D array
     data = array([x,x,x]).T
-    ctrs = data
-    DM = dmatrix(data,ctrs)
+    DM = dmatrix(data)
     print DM
