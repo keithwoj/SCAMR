@@ -20,11 +20,9 @@ rbfinterp(d,s,p,rbfparms) solves a collocation problem, fits surface to data
 
 *** RBFs Included:
 
-linear, f(r) = r
-linear(d,**parms)
-
-cubic, f(r) = r^3
-cubic(d,**parms)
+polyharmonic spline, f(r) = r^m for m odd, positive integer
+                     f(r) = r^m log(r) for m even, positive integer
+phs(d,**parms)
 
 multiquadric, f(r) = sqrt(1 + (ep r)^2)
 mq(d,**parms)
@@ -49,14 +47,15 @@ RBF Remarks:
 *** Unit tests for each function are contained in the module ***
 """
 
-from pylab import array, dot, exp, linalg, linspace, norm, ones, sqrt, zeros
+from matplotlib.pylab import array, dot, exp, linalg, linspace, log, norm, ones
+from matplotlib.pylab import sqrt, zeros, eye
 
-def dmatrix(d,**kwargs):
-    # DM = dmatrix(d,**kwargs)
+def dmatrix(d,**centers):
+    # DM = dmatrix(d,**centers)
     #    
     # Arguments:
     # d = data
-    # kwargs may contain centers, c
+    # *centers may contain centers, c, different from d, otherwise c = d
     #     
     # Typically d = c but, in general, data does not have to equal its centers
     # as in the case of the evaluation matrix, where the d becomes the
@@ -96,10 +95,10 @@ def dmatrix(d,**kwargs):
         d = array([d]).T
     
     ## **************** WHY DOES c = kwargs.get('centers',d) RETURN NONE????
-    if kwargs.get('centers') is None:
+    if centers.get('centers') is None:
         c = d
     else:
-        c = kwargs.get('centers')
+        c = centers.get('centers')
 
     if c.ndim > 1:
         if c.shape[1] > c.shape[0]:
@@ -131,39 +130,36 @@ def dmatrix(d,**kwargs):
     #
     DM = zeros((M,N))
     # Determine the distance of each point in the data-set from its center
-    for i in xrange(M):
+    for i in range(M):
         # Compute the row ||d_i - c_0|| ||d_i - c_1|| ... ||d_i - c_n||
         DM[i,:] = ((d[i]-c)**2).sum(1)
     # Finish distance formula by taking square root of each entry
     return sqrt(DM)
 
-def rbfinterp(d,s,p,**rbfparms):
+def rbfinterp(d,s,p,rbf,**rbfparms):
     #
-    # yp = rbfinterp(d,s,p,**rbfparms)
+    # yp = rbfinterp(d,s,p,rbf,*rbfparms)
     #
-    # Use Radial Basis Functions (rbf) to interpolate
+    # Use Radial Basis Functions (rbf) to interpolate using Infinitely Smooth
+    # RBF or Polyharmonic Spline (PHS)
     #
     # Arguments:
     # d = data
     # s = surface (curve) to be interpolated
     # p = evaluation points (points at which s is to be interpolated)
-    # rbfparms = 'rbf','ep', 'op'
-    #       rbf = Radial Basis Function (RBF) to be used for interpolation
+    # rbfparms = ep', 'm'
     #       ep = shape parameter for RBF
-    #       op = which operators are needed (*** items may be a list ***)
-    #          {'interp', 'first', 'second', 'div', 'grad', 'curl', 'laplacian'}
+    #       m  = exponent for polyharmonic spline (PHS)
     #
     # Construct the collocation matrices:
-    # bfunc = rbf
-    bfunc = rbfparms.get('rbf',dmatrix)
-    # op = operator
-    op = rbfparms.get('op','interp')
     # ep = shape parameter
     ep = rbfparms.get('ep')
+    #  m = power for PHS
+    m = rbfparms.get('pwr')
     # IM = interpolation matrix
-    IM = bfunc(d, operator = op, shapeparm = ep)
+    IM = rbf(d, shapeparm = ep, power = m)
     # EM = evaluation matrix
-    EM = bfunc(p, centers = d, operator = op, shapeparm = ep)
+    EM = rbf(p, centers = d, shapeparm = ep, power = m)
     #***************************************************************************
     # Linear Algebra Remarks:
     # 
@@ -192,12 +188,19 @@ def linear(d,**parms):
     c = parms.get('centers')
     return dmatrix(d, centers = c)
     
-def cubic(d,**parms):
-    # cubic, f(r) = r^3
+def phs(d,**parms):
+    # phs, f(r) = r^m for m odd positive integer
     c = parms.get('centers')    
-    #op = parms.get('operator','interp')
+    m = parms.get('power')
     DM = dmatrix(d, centers = c)
-    return DM**3
+    # Check to see if m is a positive integer
+    if (m == int(m)) & (m > 0):
+        if m%2:
+            return DM**m*log(DM + 1*(DM==0))
+        else:
+            return DM**m
+    else:
+        raise NameError("PHS power must be a positive integer.")            
     
 def mq(d,**parms):
     # multiquadric, f(r) = sqrt(1 + (ep r)^2)
@@ -205,8 +208,9 @@ def mq(d,**parms):
     #op = parms.get('operator','interp')
     ep = parms.get('shapeparm',1)
     DM = dmatrix(d, centers = c)
-    e = ep*ones(DM.shape)
-    return sqrt(1+(e*DM)**2)
+    # eps_r = epsilon*r where epsilon may be an array or scalar
+    eps_r = dot(ep*eye(DM.shape[0]),DM)
+    return sqrt(1+(eps_r)**2)
 
 def gauss(d,**parms):
     # gaussian, f(r) = exp(-(ep r)^2)
@@ -214,8 +218,9 @@ def gauss(d,**parms):
     #op = parms.get('operator','interp')
     ep = parms.get('shapeparm',1)
     DM = dmatrix(d, centers = c)
-    e = ep*ones(DM.shape)
-    return exp(-(e*DM)**2)
+    # eps_r = epsilon*r where epsilon may be an array or scalar
+    eps_r = dot(ep*eye(DM.shape[0]),DM)
+    return exp(-(eps_r)**2)
 '''
 --------------------------------------------------------------------------------
                                 UNIT TESTS
@@ -225,17 +230,20 @@ def testfunction(data):
     # N-D Gaussian
     N, sd = data.shape
     f = ones((N,1))
-    for i in xrange(sd):
+    for i in range(sd):
         f = f*array([exp(-15*(data[:,i]-0.5)**2)]).T
         
     return f
     
 def test_interp():
     # Testing interpolation
-    x = linspace(0,1,19)    
-    xp = linspace(0.01,0.99,33)
-    rbf_list = [linear,cubic,mq,gauss]
+    nn = 19 # number of nodes
+    ne = 33 # number of evaluation points
+    x = linspace(0,1,nn)    
+    xp = linspace(0.01,0.99,ne)
+    rbf_list = [mq,gauss,phs]   
     ep_list = [0.01,0.5,1.0,1.5,2]
+    m = 5
     for ee in ep_list:
         for ff in rbf_list:
             # 1D
@@ -243,34 +251,34 @@ def test_interp():
             p = array([xp]).T
             rhs = testfunction(d)
             exact = testfunction(p)
-            Pf = rbfinterp(d,rhs,p,rbf = ff,ep = ee)
+            Pf = rbfinterp(d,rhs,p,ff,ep = ee, pwr = m)
 
             err = norm(Pf-exact)
             
-            print "1D interp, %s, shape = %f, L2 error = %e|" % (ff.func_name,ee,err)
+            print("1D interp, {}, shape = {}, L2 error = {:e}".format(ff.__name__,ee,err))
     
             # 2D
             d = array([x,x]).T
             p = array([xp,xp]).T
             rhs = testfunction(d)
             exact = testfunction(p)
-            Pf = rbfinterp(d,rhs,p,rbf = ff,ep = ee)
+            Pf = rbfinterp(d,rhs,p,ff,ep = ee, pwr = m)
         
             err = norm(Pf-exact)
         
-            print "2D interp, %s, shape = %f, L2 error = %e|" % (ff.func_name,ee,err)
+            print("2D interp, {}, shape = {}, L2 error = {:e}".format(ff.__name__,ee,err))
         
             # 3D
             d = array([x,x,x]).T
             p = array([xp,xp,xp]).T
             rhs = testfunction(d)
             exact = testfunction(p)
-            Pf = rbfinterp(d,rhs,p,rbf = ff,ep = ee)
+            Pf = rbfinterp(d,rhs,p,ff,ep = ee, pwr = m)
         
             err = norm(Pf-exact)
         
-            print "3D interp, %s, shape = %f, L2 error = %e|" % (ff.func_name,ee,err) 
-            print "------------------------------------------------------------"
+            print("3D interp, {}, shape = {}, L2 error = {:e}".format(ff.__name__,ee,err))
+            print("----------------------------------------------------------")
             
 def test_dmatrix():
     # Unit tests for the dmatrix function
@@ -278,34 +286,34 @@ def test_dmatrix():
     # Test 1D without formatting input, data is 1D, shape is (N,)
     data = x
     DM = dmatrix(data)
-    print DM
+    print(DM)
     
     # Test 1D with x in wrong orientation (dim by N pts), data is 2D array
     data = array([x])
     DM = dmatrix(data)
-    print DM    
+    print(DM)   
     
     # Test 1D with x in correct orientation (N by dim pts), data is 2D array
     data = array([x]).T
     DM = dmatrix(data)
-    print DM  
+    print(DM)
 
     # Test 2D with x in wrong orientation (dim by N pts), data is 2D array
     data = array([x,x])
     DM = dmatrix(data)
-    print DM    
+    print(DM) 
 
     # Test 2D with x in correct orientation (N by dim pts), data is 2D array
     data = array([x,x]).T
     DM = dmatrix(data)
-    print DM   
+    print(DM)   
 
     # Test 3D with x in wrong orientation (dim by N pts), data is 2D array
     data = array([x,x,x])
     DM = dmatrix(data)
-    print DM    
+    print(DM)  
 
     # Test 3D with x in correct orientation (N by dim pts), data is 2D array
     data = array([x,x,x]).T
     DM = dmatrix(data)
-    print DM
+    print(DM)
