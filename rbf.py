@@ -48,7 +48,7 @@ RBF Remarks:
 """
 
 from matplotlib.pylab import array, dot, exp, linalg, linspace, log, norm, ones
-from matplotlib.pylab import sqrt, zeros, eye
+from matplotlib.pylab import sqrt, zeros, eye, randn
 
 def dmatrix(d,**centers):
     # DM = dmatrix(d,**centers)
@@ -195,10 +195,12 @@ def phs(d,**parms):
     DM = dmatrix(d, centers = c)
     # Check to see if m is a positive integer
     if (m == int(m)) & (m > 0):
-        if m%2:
-            return DM**m*log(DM + 1*(DM==0))
+        if (m%2):
+            #print("PHS odd m = {}".format(m))
+            return DM**m            
         else:
-            return DM**m
+            #print("PHS even m = {}".format(m))
+            return DM**m*log(DM + 1*(DM==0))            
     else:
         raise NameError("PHS power must be a positive integer.")            
     
@@ -227,23 +229,26 @@ def gauss(d,**parms):
 --------------------------------------------------------------------------------
 '''  
 def testfunction(data):
-    # N-D Gaussian
+    # N-D Gaussian or N-D Runge Function
     N, sd = data.shape
     f = ones((N,1))
     for i in range(sd):
-        f = f*array([exp(-15*(data[:,i]-0.5)**2)]).T
+        #f = f*array([exp(-15*(data[:,i]-0.5)**2)]).T
+        f = f*array([1./(1+(5*data[:,i])**2)]).T
         
     return f
     
 def test_interp():
     # Testing interpolation
-    nn = 19 # number of nodes
-    ne = 33 # number of evaluation points
-    x = linspace(0,1,nn)    
-    xp = linspace(0.01,0.99,ne)
+    nn = 31 # number of nodes
+    ne = 128 # number of evaluation points
+    #x = linspace(0,1,nn)    
+    #xp = linspace(0.01,0.99,ne)
+    x = linspace(-0.9,0.9,nn)+randn(nn)/10.
+    xp = linspace(-1,1,ne)
     rbf_list = [mq,gauss,phs]   
-    ep_list = [0.01,0.5,1.0,1.5,2]
-    m = 5
+    ep_list = [3.,5.,7.,9.]
+    m = 3
     for ee in ep_list:
         for ff in rbf_list:
             # 1D
