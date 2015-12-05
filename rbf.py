@@ -11,34 +11,37 @@ Some References:
 (1) Fasshauer G.E., Meshfree Approximation Methods with MATLAB, World Scientific
 (2) Fornberg B., Flyer N., A Primer on Radial Basis Functions with Applications
     to the Geosciences, SIAM
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
                                 FUNCTION LIST
---------------------------------------------------------------------------------
-dmatrix(d,**kwargs) builds Euclidian distance matrix between data and centers
+-------------------------------------------------------------------------------
+dmatrix(d,**centers) builds Euclidian distance matrix between data and centers
+d = data, **centers = centers (default = data)
 
-rbfinterp(d,s,p,rbfparms) solves a collocation problem, fits surface to data
+rbfinterp(d,s,p,**rbfparms) solves a collocation problem, fits surface to data
+d = data, s = surface, p = evaluation points, **rbfparms = see RBF Zoo below
 
-*** RBFs Included:
+*********************************** RBF Zoo ***********************************
 
 polyharmonic spline, f(r) = r^m for m odd, positive integer
                      f(r) = r^m log(r) for m even, positive integer
 phs(d,**parms)
+**parms = centers (default = data), power 
 
 multiquadric, f(r) = sqrt(1 + (ep r)^2)
 mq(d,**parms)
+**parms = centers (default = data), shapeparm
 
 gauss, f(r) = exp(-(ep r)^2)
 gauss(d,**parms)
+**parms = centers (default = data), shapeparm
 
 RBF Remarks:
 (1) r is the distance matrix, dmatrix(d,c) where d = data, c = centers
-(2) ep is the shape parameter epsilon, may be a vector of varying parameters
-(3) the interface for each RBF function is (d,c,order,ep)
-    d = data, c = centers, order = derivative order, ep = shape parameter
-(4) Even though an RBF does not require a shape parameter, send one anyway, this
-    convention permits a general differentiation matrix interface for RBF-FD
-(5) RBFs are globally supported but not all are strictly positive definite
+(2) centers not included in argment list => centers = data
+(3) shapeparm is shape parameter, epsilon, may be vector of varying parameters
+(4) RBFs are globally supported but not all are strictly positive definite
 
+*** TO DO: DMATRIX FUNCTION c = kwargs.get('centers',d) RETURNS NONE, WHY?
 *** TO DO: ALLOW ep TO BE A VECTOR, CONVERT ep*ones --> DM*diag(ep)
 *** TO DO: CONSTRUCT RBF-GLOBAL DIFFERENTIATION MATRICES
 *** TO DO: CONSTRUCT RBF-FD DIFFERENTIATION MATRICES
@@ -46,42 +49,43 @@ RBF Remarks:
 
 *** Unit tests for each function are contained in the module ***
 """
-
+## from importlib import reload
 from matplotlib.pylab import array, dot, exp, linalg, linspace, log, norm, ones
-from matplotlib.pylab import sqrt, zeros, eye, randn
+from matplotlib.pylab import sqrt, zeros, eye, randn, cos, pi
 
 def dmatrix(d,**centers):
-    # DM = dmatrix(d,**centers)
-    #    
-    # Arguments:
-    # d = data
-    # *centers may contain centers, c, different from d, otherwise c = d
-    #     
-    # Typically d = c but, in general, data does not have to equal its centers
-    # as in the case of the evaluation matrix, where the d becomes the
-    # evaluation points and the centers are the collocation data.
-    # 
-    # Output DM:
-    # Compute the distance matrix with entries being the distances between the
-    # data and the centers.
-    # The Euclidian distance matrix, DM, is the m by n matrix with entries
-    #      ||d_0 - c_0|| ||d_0 - c_1|| ... ||d_0 - c_n||
-    #      ||d_1 - c_0|| ||d_1 - c_1|| ... ||d_1 - c_n||
-    #                       ...
-    #      ||d_m - c_0|| ||d_m - c_1|| ... ||d_m - c_n||
-    #
-    # m = # pts, n = dim of space
-    #
-    # ****** ASSUMPTION: # pts >= dimension of space
-    # ****** ASSUMPTION: c, d are ROW vectors, otherwise convert to row vectors
-    #
-    # Remark:
-    # d and c are called vectors but it might be more appropriate to call
-    # them matrices (or rank dim(d), rank dim(c) tensors). When called vectors
-    # it is assumed that each row is a vector in the space implying the number
-    # of columns is the dimension of the space and the number of rows is the
-    # number of points
-    #
+    """
+    DM = dmatrix(d,**centers)
+       
+    Arguments:
+    d = data
+    *centers may contain centers, c, different from d, otherwise c = d
+        
+    Typically d = c but, in general, data does not have to equal its centers
+    as in the case of the evaluation matrix, where the d becomes the
+    evaluation points and the centers are the collocation data.
+    
+    Output DM:
+    Compute the distance matrix with entries being the distances between the
+    data and the centers.
+    The Euclidian distance matrix, DM, is the m by n matrix with entries
+         ||d_0 - c_0|| ||d_0 - c_1|| ... ||d_0 - c_n||
+         ||d_1 - c_0|| ||d_1 - c_1|| ... ||d_1 - c_n||
+                          ...
+         ||d_m - c_0|| ||d_m - c_1|| ... ||d_m - c_n||
+    
+    m = # pts, n = dim of space
+    
+    ****** ASSUMPTION: # pts >= dimension of space
+    ****** ASSUMPTION: c, d are ROW vectors, otherwise convert to row vectors
+    
+    Remark:
+    d and c are called vectors but it might be more appropriate to call
+    them matrices (or rank dim(d), rank dim(c) tensors). When called vectors
+    it is assumed that each row is a vector in the space implying the number
+    of columns is the dimension of the space and the number of rows is the
+    number of points
+    """
     # Test Input:
     # Are d and c arrays of row vectors?
     # If d and c are column vectors, convert them to row vectors.
@@ -137,25 +141,41 @@ def dmatrix(d,**centers):
     return sqrt(DM)
 
 def rbfinterp(d,s,p,rbf,**rbfparms):
-    #
-    # yp = rbfinterp(d,s,p,rbf,*rbfparms)
-    #
-    # Use Radial Basis Functions (rbf) to interpolate using Infinitely Smooth
-    # RBF or Polyharmonic Spline (PHS)
-    #
-    # Arguments:
-    # d = data
-    # s = surface (curve) to be interpolated
-    # p = evaluation points (points at which s is to be interpolated)
-    # rbfparms = ep', 'm'
-    #       ep = shape parameter for RBF
-    #       m  = exponent for polyharmonic spline (PHS)
-    #
+    """
+    yp = rbfinterp(data, surface, evaluation points, rbf, *rbfparms)
+    
+    Use Radial Basis Functions (rbf) to interpolate using Infinitely Smooth
+    RBF or Polyharmonic Spline (PHS)
+    
+    Arguments:
+                    (TYPE ARRAY SHAPE N, 2)
+    d = data                                            array shape (N,2)
+    s = surface (curve) to be interpolated              array shape (N,1)
+    p = evaluation points (s is interpolated)           array shape (M,2)
+    *rbfparms = ep', 'm'
+          ep = shape parameter for RBFs                scalar / list shape (N,)
+          m  = exponent for polyharmonic spline (PHS)  scalar
+    
+    Output:
+    yp = surface interpolated at the evaluation points  array shape (M,1)
+    """
     # Construct the collocation matrices:
     # ep = shape parameter
-    ep = rbfparms.get('ep')
+    ep = rbfparms.get('shapeparm')
     #  m = power for PHS
-    m = rbfparms.get('pwr')
+    m = rbfparms.get('power')
+    
+    zoo = {
+        'linear': linear,
+        'phs': phs,
+        'mq': mq,
+        'gauss': gauss
+        }
+    if rbf in zoo:
+        rbf = zoo[rbf]
+    else:
+        raise NameError('RBF not known.')
+    
     # IM = interpolation matrix
     IM = rbf(d, shapeparm = ep, power = m)
     # EM = evaluation matrix
@@ -240,51 +260,49 @@ def testfunction(data):
     
 def test_interp():
     # Testing interpolation
-    nn = 31 # number of nodes
-    ne = 128 # number of evaluation points
-    #x = linspace(0,1,nn)    
-    #xp = linspace(0.01,0.99,ne)
-    x = linspace(-0.9,0.9,nn)+randn(nn)/10.
+    nn = 33 # number of nodes
+    ne = 65 # number of evaluation points
+    x = cos(pi*(1+array(range(nn)))/(nn+1))
     xp = linspace(-1,1,ne)
-    rbf_list = [mq,gauss,phs]   
+    rbf_list = ['mq','gauss','phs']   
     ep_list = [3.,5.,7.,9.]
     m = 3
-    for ee in ep_list:
+    for ep in ep_list:
         for ff in rbf_list:
             # 1D
             d = array([x]).T
             p = array([xp]).T
             rhs = testfunction(d)
             exact = testfunction(p)
-            Pf = rbfinterp(d,rhs,p,ff,ep = ee, pwr = m)
+            Pf = rbfinterp(d,rhs,p,ff,shapeparm = ep, power = m)
 
             err = norm(Pf-exact)
             
-            print("1D interp, {}, shape = {}, L2 error = {:e}".format(ff.__name__,ee,err))
+            print("1D interp, {}, shape = {}, L2 error = {:e}".format(ff,ep,err))
     
             # 2D
             d = array([x,x]).T
             p = array([xp,xp]).T
             rhs = testfunction(d)
             exact = testfunction(p)
-            Pf = rbfinterp(d,rhs,p,ff,ep = ee, pwr = m)
+            Pf = rbfinterp(d,rhs,p,ff,shapeparm = ep, power = m)
         
             err = norm(Pf-exact)
-        
-            print("2D interp, {}, shape = {}, L2 error = {:e}".format(ff.__name__,ee,err))
+            
+            print("2D interp, {}, shape = {}, L2 error = {:e}".format(ff,ep,err))
         
             # 3D
             d = array([x,x,x]).T
             p = array([xp,xp,xp]).T
             rhs = testfunction(d)
             exact = testfunction(p)
-            Pf = rbfinterp(d,rhs,p,ff,ep = ee, pwr = m)
+            Pf = rbfinterp(d,rhs,p,ff,shapeparm = ep, power = m)
         
             err = norm(Pf-exact)
         
-            print("3D interp, {}, shape = {}, L2 error = {:e}".format(ff.__name__,ee,err))
+            print("3D interp, {}, shape = {}, L2 error = {:e}".format(ff,ep,err))
             print("----------------------------------------------------------")
-            
+    
 def test_dmatrix():
     # Unit tests for the dmatrix function
     x = linspace(0,1,5)
