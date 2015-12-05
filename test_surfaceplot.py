@@ -6,7 +6,6 @@ Created on Wed Nov 25 15:51:04 2015
 """
 from matplotlib.pylab import array
 import rbf
-import surfaceplot
 import halton
 
 N = 13
@@ -30,7 +29,7 @@ yp = (2*yp - (min(yp)+max(yp)))/(max(yp)-min(yp))
 
 p = array([xp,yp]).T
 
-fp = rbf.rbfinterp(d,f,p,'mq',ep=2.4)
+fp = rbf.rbfinterp(d,f,p,'mq',shapeparm=2.4)
 
-surfaceplot.surfaceplot(p,fp)
+rbf.surfaceplot(p,fp)
  

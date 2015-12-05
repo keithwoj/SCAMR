@@ -243,10 +243,33 @@ def gauss(d,**parms):
     # eps_r = epsilon*r where epsilon may be an array or scalar
     eps_r = dot(ep*eye(DM.shape[0]),DM)
     return exp(-(eps_r)**2)
+
 '''
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+                        UTILITY FUNCTIONS
+-------------------------------------------------------------------------------
+'''
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+
+def surfaceplot(data,f):
+    
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    f = f.flatten()
+    x = data[:,0]
+    y = data[:,1]
+    
+    if x.shape == f.shape:
+        ax.plot_trisurf(x,y,f)
+        ax.scatter3D(x,y,f,c='r')
+    else:
+        NameError('Surface and axes must have same dimension.')    
+    
+'''
+-------------------------------------------------------------------------------
                                 UNIT TESTS
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 '''  
 def testfunction(data):
     # N-D Gaussian or N-D Runge Function
