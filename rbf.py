@@ -51,24 +51,96 @@ RBF Remarks:
 """
 ## from importlib import reload
 from matplotlib.pylab import array, dot, exp, linalg, linspace, log, norm, ones
-from matplotlib.pylab import sqrt, zeros, eye, randn, cos, pi
+from matplotlib.pylab import sqrt, zeros, eye, meshgrid, cos, pi
 
-def dmatrix(d,**centers):
+def diffmatrix(d,**centers):
     """
-    DM = dmatrix(d,**centers)
+    DM = diffmatrix(d,**centers)
        
-    Arguments:
-    d = data
+    Parameters
+    --------
+    d = data : array_like (N,s) where N = number of points, s = dimension
     *centers may contain centers, c, different from d, otherwise c = d
         
     Typically d = c but, in general, data does not have to equal its centers
     as in the case of the evaluation matrix, where the d becomes the
     evaluation points and the centers are the collocation data.
     
-    Output DM:
+    Returns
+    -------
+    dr.T-cc.T : ndarray
+    
+    Compute the difference matrix with entries being the differences between
+    data and the centers.
+
+    d_0 = (d[0,0], d[0,1], ...), d_1 = (d[1,0], d[1,1], ...), etc.    
+    
+    The difference matrix is the m by n matrix with entries
+         d_0 - c_0 d_0 - c_1 ... d_0 - c_n
+         d_1 - c_0 d_1 - c_1 ... d_1 - c_n
+                          ...
+         d_m - c_0 d_m - c_1 ... d_m - c_n
+    
+    m = # pts, n = dim of space
+    
+    ****** ASSUMPTION: # pts >= dimension of space
+    ****** ASSUMPTION: c, d are ROW vectors, otherwise convert to row vectors
+    
+    Remark:
+    d and c are called vectors but it might be more appropriate to call
+    them matrices (or rank dim(d), rank dim(c) tensors). When called vectors
+    it is assumed that each row is a vector in the space implying the number
+    of columns is the dimension of the space and the number of rows is the
+    number of points
+    """
+    ## **************** WHY DOES c = kwargs.get('centers',d) RETURN NONE????
+    if centers.get('centers') is None:
+        c = d
+    else:
+        c = centers.get('centers')
+        
+    # Test Input:
+    # Are d and c arrays of row vectors?
+    # If d and c are column vectors, convert them to row vectors.
+    # If d and c are square, i.e. # pts = dimension of space, notify user
+    if centers.get('clean') is None:
+        d = data_check(d)
+        c = data_check(c)
+    
+    M, sd = d.shape
+    N, sc = c.shape
+    # **************************************************************************
+    #                               Begin Algorithm
+    # **************************************************************************
+    #
+    # Raise error if centers and data have different dimension    
+    if sd != sc:
+        raise ValueError('Data and centers must have same dimension')
+    # ********** Construct the Difference Matrix **********
+    dr,cc = meshgrid(d,c)
+    return dr.T-cc.T
+
+def dmatrix(d,**centers):
+    """
+    DM = dmatrix(d,**centers)
+       
+    Parameters
+    --------
+    d = data : array_like (N,s) where N = number of points, s = dimension
+    *centers may contain centers, c, different from d, otherwise c = d
+        
+    Typically d = c but, in general, data does not have to equal its centers
+    as in the case of the evaluation matrix, where the d becomes the
+    evaluation points and the centers are the collocation data.
+    
+    Returns
+    -------
+    sqrt(DM) : ndarray
+    
     Compute the distance matrix with entries being the distances between the
     data and the centers.
-    The Euclidian distance matrix, DM, is the m by n matrix with entries
+
+    DM is the Euclidian distance matrix, the m by n matrix with entries
          ||d_0 - c_0|| ||d_0 - c_1|| ... ||d_0 - c_n||
          ||d_1 - c_0|| ||d_1 - c_1|| ... ||d_1 - c_n||
                           ...
@@ -86,41 +158,28 @@ def dmatrix(d,**centers):
     of columns is the dimension of the space and the number of rows is the
     number of points
     """
-    # Test Input:
-    # Are d and c arrays of row vectors?
-    # If d and c are column vectors, convert them to row vectors.
-    # If d and c are square, i.e. # pts = dimension of space, notify user 
-    if d.ndim > 1:    
-        if d.shape[1] > d.shape[0]:
-            d = d.T
-        elif d.shape[1] == d.shape[0]:
-            print("Assuming data is in row-vector form.")
-    else:   # 1-D data, convert to 2-D data with shape (M,1)
-        d = array([d]).T
-    
-    ## **************** WHY DOES c = kwargs.get('centers',d) RETURN NONE????
     if centers.get('centers') is None:
         c = d
     else:
         c = centers.get('centers')
-
-    if c.ndim > 1:
-        if c.shape[1] > c.shape[0]:
-            c = c.T
-        elif c.shape[1] == c.shape[0]:
-            print("Assuming centers are in row-vector form.")
-    else:   # 1-D data, convert to 2-D data with shape (N,1)
-        c = array([c]).T
+        
+    # Test Input:
+    # Are d and c arrays of row vectors?
+    # If d and c are column vectors, convert them to row vectors.
+    # If d and c are square, i.e. # pts = dimension of space, notify user
+    if centers.get('clean') is None:
+        d = data_check(d)
+        c = data_check(c)
+    
+    M, sd = d.shape
+    N, sc = c.shape
     # **************************************************************************
     #                               Begin Algorithm
     # **************************************************************************
-    # Obtain shape of input:
-    M, sd = d.shape    # M = # pts, sd = dim of data space
-    N, sc = c.shape    # N = # pts, sc = dim of centers space
     #
     # Raise error if centers and data have different dimension    
     if sd != sc:
-        raise NameError('Data and centers must have same dimension')
+        raise ValueError('Data and centers must have same dimension')
     # ********** Construct the Distance Matrix DM **********
     # Initialize the distance matrix: (data # of pts) by (centers # of pts)
     # Denote the 
@@ -147,17 +206,18 @@ def rbfinterp(d,s,p,rbf,**rbfparms):
     Use Radial Basis Functions (rbf) to interpolate using Infinitely Smooth
     RBF or Polyharmonic Spline (PHS)
     
-    Arguments:
-                    (TYPE ARRAY SHAPE N, 2)
-    d = data                                            array shape (N,2)
-    s = surface (curve) to be interpolated              array shape (N,1)
-    p = evaluation points (s is interpolated)           array shape (M,2)
+    Parameters
+    ----------
+    d = data : array_like (N,s)  where N = number of points, s = dimension
+    s = surface (curve) to be interpolated : array_like (N,s)
+    p = evaluation points (s is interpolated) : array_like (M,s)
     *rbfparms = ep', 'm'
-          ep = shape parameter for RBFs                scalar / list shape (N,)
-          m  = exponent for polyharmonic spline (PHS)  scalar
+          ep = shape parameter for RBFs : scalar or array_like (N,)
+          m  = exponent for polyharmonic spline (PHS) :  scalar
     
-    Output:
-    yp = surface interpolated at the evaluation points  array shape (M,1)
+    Returns
+    -------
+    yp = surface interpolated at the evaluation points :  array_like (M,s)
     """
     # Construct the collocation matrices:
     # ep = shape parameter
@@ -174,12 +234,12 @@ def rbfinterp(d,s,p,rbf,**rbfparms):
     if rbf in zoo:
         rbf = zoo[rbf]
     else:
-        raise NameError('RBF not known.')
+        raise NameError('RBF not known')
     
     # IM = interpolation matrix
-    IM = rbf(d, shapeparm = ep, power = m)
+    IM = rbf(d, 'interp', shapeparm = ep, power = m)
     # EM = evaluation matrix
-    EM = rbf(p, centers = d, shapeparm = ep, power = m)
+    EM = rbf(p, 'interp', centers = d, shapeparm = ep, power = m)
     #***************************************************************************
     # Linear Algebra Remarks:
     # 
@@ -198,33 +258,114 @@ def rbfinterp(d,s,p,rbf,**rbfparms):
     # Since w = inv(P)*s, EM*w = yp => EM*inv(P)*s
     #
     return dot(EM,linalg.solve(IM,s))
+    
+def rbfdiff(d,rbf,op,geo,**parms):
+    # ep = shape parameter
+    ep = parms.get('shapeparm')
+    #  m = power for PHS
+    m = parms.get('power')
+    
+    zoo = {
+        'linear': linear,
+        'phs': phs,
+        'mq': mq,
+        'gauss': gauss
+        }
+    if rbf in zoo:
+        rbf = zoo[rbf]
+    else:
+        raise NameError('RBF not known.')    
+    
+    opzoo = ['d1','d2','grad','div','laplacian','curl']
+    
+    if op not in opzoo:
+        raise NameError('operator not known')
+    
+    geozoo = ['cartesian','radial','polar','cylindrical','spherical']
+        
+    if geo not in geozoo:
+        raise NameError('unknown geometry')
+    
+    L = rbf(d, op, centers = d, shapeparm = ep, power = m, operator = op, geometry = geo)
+    
+    return L
 '''
 --------------------------------------------------------------------------------
                                     RBF ZOO
 --------------------------------------------------------------------------------
 '''
-def linear(d,**parms):
+def linear(d, op = 'interp', **parms):
     # linear, f(r) = r
     c = parms.get('centers')
     return dmatrix(d, centers = c)
     
-def phs(d,**parms):
+def phs(d, op = 'interp', **parms):
     # phs, f(r) = r^m for m odd positive integer
-    c = parms.get('centers')    
+    if parms.get('centers') is None:
+        c = d
+    else:
+        c = parms.get('centers') 
+        
     m = parms.get('power')
-    DM = dmatrix(d, centers = c)
+    
+    d = data_check(d)
+    c = data_check(c)
+
+    M, sc = c.shape
+    N, sd = d.shape    
+    
+    # Construct the distance matrix
+    DM = dmatrix(d, centers = c, clean = 1)
     # Check to see if m is a positive integer
-    if (m == int(m)) & (m > 0):
+    if (m == int(m)) & (m > 2):
         if (m%2):
             #print("PHS odd m = {}".format(m))
-            return DM**m            
+            if (op == 'interp'):
+                return DM**m            
+            else:
+                IM = DM**m
         else:
             #print("PHS even m = {}".format(m))
-            return DM**m*log(DM + 1*(DM==0))            
+            if (op == 'interp'):
+                return DM**m*log(DM + 1*(DM==0))
+            else:
+                IM = DM**m*log(DM + 1*(DM==0))
     else:
-        raise NameError("PHS power must be a positive integer.")            
+        raise ValueError("PHS power must be a positive integer greater than 2.")
+
+    if (op == 'd1' and geo == 'radial'):
+        if (m%2):
+            Lx = m*DM**(m-1)
+        else:
+            Lx = DM**(m-1)*(m*log(DM + 1*(DM==0)) + 1)
+    if (op == 'd2' and geo == 'radial'):
+        if (m%2):
+            Lx = m*(m-1)*DM**(m-2)
+        else:
+            Lx = DM**(m-2)*((m-1)*(m*log(DM + 1*(DM==0)) + 1)+m)
+    if (op == 'laplacian' and geo == 'radial'):
+        if (m%2):
+            Lx = m**2*DM**(m-2)
+        else:
+            Lx = 1
+
     
-def mq(d,**parms):
+    return dot(Lx,linalg.inv(IM))
+              
+    
+def mq(d, op = 'interp', **parms):
+    """
+    Note on differentiation of MQ RBFs:
+    ||x-xj|| = sqrt{(x-xj)^2}
+    => d/dx ||x-xj||^2 = d/dx (x-xj)^2 = 2(x-xj)
+
+    d/dx sqrt(1 + ep^2||x-xj||^2) = ep^2*(x-xj)/sqrt(1+ep^2||x-xj||^2)
+
+     d^2/dx^2 sqrt(1 + ep^2||x-xj||^2)
+     = d/dx ep^2*(x-xj)/sqrt(1+ep^2||x-xj||^2)
+     = ep^2(1+ep^2||x-xj||^2)^(-1/2) - ep^4(x-xj)(1+ep^2||x-xj||^2)^(-3/2)
+     = [ep^2+(x-xj - 1)ep^4(x-xj)]/(1+ep^2||x-xj||^2)^(3/2)    
+    """ 
     # multiquadric, f(r) = sqrt(1 + (ep r)^2)
     c = parms.get('centers')
     #op = parms.get('operator','interp')
@@ -232,9 +373,10 @@ def mq(d,**parms):
     DM = dmatrix(d, centers = c)
     # eps_r = epsilon*r where epsilon may be an array or scalar
     eps_r = dot(ep*eye(DM.shape[0]),DM)
-    return sqrt(1+(eps_r)**2)
+    if op == 'interp':
+        return sqrt(1+(eps_r)**2)
 
-def gauss(d,**parms):
+def gauss(d, op = 'interp', **parms):
     # gaussian, f(r) = exp(-(ep r)^2)
     c = parms.get('centers')
     #op = parms.get('operator','interp')
@@ -242,13 +384,30 @@ def gauss(d,**parms):
     DM = dmatrix(d, centers = c)
     # eps_r = epsilon*r where epsilon may be an array or scalar
     eps_r = dot(ep*eye(DM.shape[0]),DM)
-    return exp(-(eps_r)**2)
+    if op == 'interp':
+        return exp(-(eps_r)**2)
 
 '''
 -------------------------------------------------------------------------------
                         UTILITY FUNCTIONS
 -------------------------------------------------------------------------------
 '''
+
+def data_check(d):
+    if d.ndim > 1:    
+        if d.shape[1] > d.shape[0]:
+            d = d.T
+        elif d.shape[1] == d.shape[0]:
+            print("Assuming data is in row-vector form.")
+    else:   # 1-D data, convert to 2-D data with shape (M,1)
+        d = array([d]).T
+          
+    return d
+
+def block_diag_exract(A,nb):
+    N = A.shape[0]
+    return [A[i*N:(i+1)*N,i*N:(i+1)*N] for i in range(nb)]
+
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
@@ -264,7 +423,7 @@ def surfaceplot(data,f):
         ax.plot_trisurf(x,y,f)
         ax.scatter3D(x,y,f,c='r')
     else:
-        NameError('Surface and axes must have same dimension.')    
+        ValueError('Surface and axes must have same dimension.')    
     
 '''
 -------------------------------------------------------------------------------
