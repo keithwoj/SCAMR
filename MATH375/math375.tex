@@ -1,0 +1,210 @@
+\documentclass[12pt]{article}
+
+\bibliographystyle{plain}
+\pagestyle{myheadings}
+\markboth{Wojciechowski}{MATH 375}
+
+%\setcounter{secnumdepth}{2}
+\renewcommand{\theequation}{\thesection.\arabic{equation}}
+
+\usepackage{epsfig}
+\usepackage{epstopdf}
+\usepackage{amsmath} \usepackage{amsthm}
+\usepackage{amsfonts} \usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage[margin=1.5cm]{geometry}
+\usepackage{fleqn}
+\usepackage{cite}
+\usepackage{subcaption} % Required to use subfigure and inserted captions
+\usepackage{listings} % Required for insertion of code
+\usepackage{courier} % Required for the courier font
+\usepackage[usenames,dvipsnames]{color} % Required for custom colors
+\usepackage{fancyhdr} % Required for custom headers
+\usepackage{lastpage} % Required to determine the last page for the footer
+\usepackage{multicol,multirow,enumerate}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newtheorem{thm}{Theorem}
+\newtheorem{lemma}[thm]{Lemma}
+\newtheorem{cor}[thm]{Corollary}
+\newtheorem{prop}[thm]{Proposition}
+\newtheorem{defin}[thm]{Definition}
+\newtheorem{obser}[thm]{Observation}
+\newtheorem{remark}[thm]{Remark}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newenvironment{definition}{\begin{description}\begin{defin}}
+{\end{defin}\end{description}\medskip}
+
+
+\newcounter{example}
+\newenvironment{example}{\refstepcounter{example}
+         \medskip\par\noindent\textbf{Example \theexample.} } {\medskip}
+\renewcommand\UrlLeft{<url: }
+\renewcommand\UrlRight{>}
+\DeclareUrlCommand\email{\urlstyle{rm}%
+\renewcommand\UrlLeft{e-mail:\ }%
+\renewcommand\UrlRight{}}
+
+% Margins
+\topmargin=-0.45in
+\evensidemargin=0in
+\oddsidemargin=0in
+\textwidth=6.5in
+\textheight=9.0in
+\headsep=0.25in
+
+\linespread{1.1} % Line spacing
+
+\setlength\parindent{0pt} % Removes all indentation from paragraphs
+
+%----------------------------------------------------------------------------------------
+%	CODE INCLUSION CONFIGURATION
+%	Skip this unless you know what you're doing
+%----------------------------------------------------------------------------------------
+
+\definecolor{MyDarkGreen}{rgb}{0.0,0.4,0.0} % This is the color used for comments
+\lstloadlanguages{Python} % Load Python syntax for listings, for a list of other languages supported see: ftp://ftp.tex.ac.uk/tex-archive/macros/latex/contrib/listings/listings.pdf
+\lstset{language=Python, % Use Python in this example
+        frame=single, % Single frame around code
+        basicstyle=\small\ttfamily, % Use small true type font
+        keywordstyle=[1]\color{Blue}\bf, % Python functions bold and blue
+        keywordstyle=[2]\color{Purple}, % Python function arguments purple
+        keywordstyle=[3]\color{Blue}\underbar, % Custom functions underlined and blue
+        identifierstyle=, % Nothing special about identifiers
+        commentstyle=\usefont{T1}{pcr}{m}{sl}\color{MyDarkGreen}\small, % Comments small dark green courier font
+        stringstyle=\color{Purple}, % Strings are purple
+        showstringspaces=false, % Don't put marks in string spaces
+        tabsize=5, % 5 spaces per tab
+        %
+        % Put standard Python functions not included in the default language here
+        morekeywords={rand},
+        %
+        % Put Python function parameters here
+        morekeywords=[2]{on, off, interp},
+        %
+        % Put user defined functions here
+        morekeywords=[3]{test},
+       	%
+        morecomment=[l][\color{Blue}]{...}, % Line continuation (...) like blue comment
+        numbers=left, % Line numbers on left
+        firstnumber=1, % Line numbers start with line 1
+        numberstyle=\tiny\color{Blue}, % Line numbers are blue and small
+        stepnumber=5 % Line numbers go in steps of 5
+}
+
+% AUTHOR-DEFINED MACROS:
+% OPERATORS
+\def\D{\mathcal{D}}
+\def\H{\mathcal{H}}
+\def\I{\mathcal{I}}
+\def\L{\mathcal{L}}
+\def\N{\mathcal{N}}
+\def\O{\mathcal{O}}
+% SETS OF NUMBERS
+\def\C{\mathbb{C}}
+\def\N{\mathbb{N}}
+\def\R{\mathbb{R}}
+\def\Z{\mathbb{Z}}
+% VECTORS
+\def\cc{\textbf{c}}
+\def\ii{\textbf{i}}
+\def\jj{\textbf{j}}
+\def\kk{\textbf{k}}
+\def\nn{\textbf{n}}
+\def\rr{\textbf{r}}
+\def\ss{\textbf{s}}
+\def\bu{\textbf{u}}
+\def\bv{\textbf{v}}
+\def\bw{\textbf{w}}
+% VECTOR SPACES OR MATRICES
+\def\bA{\textbf{A}}
+\def\bB{\textbf{B}}
+\def\bC{\textbf{C}}
+\def\bD{\textbf{D}}
+\def\bF{\textbf{F}}
+\def\bG{\textbf{G}}
+\def\bH{\textbf{H}}
+\def\bI{\textbf{I}}
+\def\bJ{\textbf{J}}
+\def\bK{\textbf{K}}
+\def\bL{\textbf{L}}
+\def\bM{\textbf{M}}
+\def\bN{\textbf{N}}
+\def\bP{\textbf{P}}
+\def\bQ{\textbf{Q}}
+\def\bR{\textbf{R}}
+\def\bS{\textbf{S}}
+\def\bT{\textbf{T}}
+\def\bU{\textbf{U}}
+\def\bV{\textbf{V}}
+\def\bW{\textbf{W}}
+\def\bX{\textbf{X}}
+\def\bY{\textbf{Y}}
+
+\def\ds{\displaystyle}
+
+\begin{document}
+\title{MATH 375 Numerical Linear Algebra}
+\author{Keith Wojciechowski}
+
+\maketitle{}
+
+\section{Background}
+
+This course is the second linear algebra class students take while enrolled in the AMCS program. It is designed for the Scientific Computing concentration but would be of value to many of the other concentrations as well. The pedagogical approach recommended for this course is to provide students with the theoretical background for algorithms encountered in numerical linear algebra (NLA). The course would focus on mathematical proof, error analysis, and stability analysis. Some programming or use of NLA packages would be encouraged to enhance the theory but the focus would be on mathematical foundations versus best programming practices. The motivation for this course-philosophy is that students would go on to take MSCS 446 and 447 where they would learn to put scientific computing into practice.
+
+\section{Recommended Texts}
+
+\begin{itemize}
+	\item Trefethen and Bau \href{https://www.amazon.com/Numerical-Linear-Algebra-Lloyd-Trefethen/dp/0898713617/ref=pd_sbs_14_t_0?_encoding=UTF8&psc=1&refRID=Q8PBY7X2H4TGFRG3C6B8}{\emph{Numerical Linear Algebra} (TB)}
+	\item Demmel \href{https://www.amazon.com/Applied-Numerical-Linear-Algebra-Demmel/dp/0898713897#reader_0898713897}{\emph{Applied Numerical Linear Algebra}} (JD)
+	\item Supplementary: Golub and Van Loan \href{https://www.amazon.com/Computations-Hopkins-Studies-Mathematical-Sciences/dp/1421407949/ref=pd_bxgy_14_img_2?_encoding=UTF8&psc=1&refRID=QYCM1GH65WFMA9FTGART}{\emph{Matrix Computations}} (GV)
+\end{itemize}
+
+\section{Topics}
+
+Topics covered in a conventional numerical linear algebra course are listed below. These topics are chosen from TB, JD, and GV.
+
+\begin{enumerate}
+	\item Vectors, Matrices, and Matrix, Matrix-vector Operations
+	\item Eigenvalues and Singular Values
+	\item Floating Point Arithmetic
+	\item Norms and Measuring Errors
+	\item The Singular Value Decomposition
+	\item Gaussian Elimination
+	\item Pivoting
+	\item Conditioning and Condition Numbers
+	\item Error, Backward Error, and Residual
+	\item Solvability and Numerically Singular
+	\item Stability of Gaussian Elimination
+	\item Stability of Back Substitution
+	\item Tridiagonal and Banded Matrices
+	\item The LU Decomposition
+	\item Matrix Factorizations that Solve the Linear Least Squares Problem
+	\item Normal Equations
+	\item QR Decomposition
+	\item Orthogonal Matrices
+	\item Householder Transformations
+	\item Givens Rotations (omit?)
+	\item Round-off Error Analysis for Orthongal Matrices
+	\item Rank-Deficient Least Squares Problems
+	\item Eigenvalue Problems
+	\item The Gershgorin Theorem and Gershgorin Circles (omit?)
+	\item The Power Method
+	\item Rayleigh Quotient Inverse Iteration
+	\item QR Iteration (without shifts)
+	\item Reduction to Hessenberg or Tridiagonal Form
+	\item QR Algorithm with Shifts
+	\item Algorithms for Symmetric Eigenvalue Problems (omit?)
+\end{enumerate}
+
+\section{Other Resources}
+
+\begin{itemize}
+	\item Sage
+	\item Jupyter Notebooks
+	\item MATLAB (Octave)
+\end{itemize}
+
+\end{document}
